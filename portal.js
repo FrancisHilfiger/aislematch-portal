@@ -158,7 +158,8 @@ ${y}`}var M=class extends Error{constructor({message:e,code:r,cause:s,name:n}){v
 @media (min-width: 900px) {
   .root { flex-direction: row; }
   .top, .tabs { display: none; }
-  .side { display: flex; flex-direction: column; width: 248px; flex: none; border-right: 1px solid var(--line); background: var(--cream); padding: 28px 18px 20px; }
+  .side { display: flex; flex-direction: column; width: 248px; flex: none; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: thin; border-right: 1px solid var(--line); background: var(--cream); padding: 28px 18px 20px; }
+  .side .foot { flex: none; }
   .side .brand img { height: 34px; display: block; margin-bottom: 4px; }
   .side .sub { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 6px 0 30px; }
   .side nav { display: flex; flex-direction: column; gap: 2px; }
@@ -172,6 +173,12 @@ ${y}`}var M=class extends Error{constructor({message:e,code:r,cause:s,name:n}){v
   .shell { flex: 1; }
   .view { padding: 44px 48px 64px; }
   .h1 { font-size: 44px; }
+  @media (max-height: 760px) {
+    .side { padding: 18px 14px 14px; }
+    .side .sub { margin: 4px 0 14px; }
+    .side .nav { min-height: 38px; }
+    .side .foot { padding-top: 10px; }
+  }
 }
 
 .pagehead { margin-bottom: 26px; }
