@@ -124,7 +124,10 @@ export async function renderProfile(C, view) {
         } }, 'Make first') : null,
         h('button', { class: 'btn danger', onclick: async () => {
           const next = v.portfolio_photos.filter((_, k) => k !== i)
-          s.close(); if (await save({ portfolio_photos: next }, null, 'Photo removed')) drawPhotos()
+          // the cover photo is what couples see first, so it must never point at a photo that was just removed
+          const patch = { portfolio_photos: next }
+          if (v.cover_photo_url === u || (v.cover_photo_url && !next.includes(v.cover_photo_url))) patch.cover_photo_url = next[0] || null
+          s.close(); if (await save(patch, null, 'Photo removed')) drawPhotos()
         } }, 'Remove')] })
   }
   const addPhotos = async () => {
