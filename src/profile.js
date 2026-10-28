@@ -172,10 +172,9 @@ export async function renderProfile(C, view) {
     const ig = txt(v.instagram_url, { inputmode: 'url', autocapitalize: 'none', placeholder: 'instagram.com/yourname' })
     const fb = txt(v.facebook_url, { inputmode: 'url', autocapitalize: 'none' })
     const tt = txt(v.tiktok_url, { inputmode: 'url', autocapitalize: 'none' })
-    const cal = txt(v.calendly_url, { inputmode: 'url', autocapitalize: 'none', placeholder: 'calendly.com/yourname' })
     const b = h('button', { class: 'btn' }, 'Save contact and links')
-    b.addEventListener('click', () => save({ phone_number: phone.value.trim() || null, website_url: fixUrl(web.value), instagram_url: fixUrl(ig.value), facebook_url: fixUrl(fb.value), tiktok_url: fixUrl(tt.value), calendly_url: fixUrl(cal.value) }, b))
-    s.append(field('Phone', phone), field('Website', web), field('Instagram', ig), h('div', { class: 'row2' }, field('Facebook', fb), field('TikTok', tt)), field('Booking link', cal, 'Calendly or similar. Couples can book a call with you.'), b)
+    b.addEventListener('click', () => save({ phone_number: phone.value.trim() || null, website_url: fixUrl(web.value), instagram_url: fixUrl(ig.value), facebook_url: fixUrl(fb.value), tiktok_url: fixUrl(tt.value) }, b))
+    s.append(field('Phone', phone), field('Website', web), field('Instagram', ig), h('div', { class: 'row2' }, field('Facebook', fb), field('TikTok', tt)), b)
   })
 
   form('Where you are based', (s) => {
