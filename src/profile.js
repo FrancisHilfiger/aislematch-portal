@@ -55,6 +55,8 @@ export function goLiveChecks(C) {
 }
 export function fixCheck(C, c) { if (c.sec) C.jump = c.sec; C.go(c.route || 'profile') }
 
+// Instagram: accepts "@name", "name" or a full link and returns just the handle
+const igHandle = (s) => { s = String(s || '').trim().replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/^(www\.)?instagram\.com\//i, ''); s = s.split(/[/?#\s]/)[0].replace(/@/g, '').trim(); return s || null }
 const fixUrl = (s) => { s = (s || '').trim(); if (!s) return null; return /^https?:\/\//i.test(s) ? s : 'https://' + s }
 
 export async function renderProfile(C, view) {
@@ -184,11 +186,12 @@ export async function renderProfile(C, view) {
   form('Contact and links', (s) => {
     const phone = txt(v.phone_number, { type: 'tel', inputmode: 'tel', autocomplete: 'tel' })
     const web = txt(v.website_url, { inputmode: 'url', autocapitalize: 'none', placeholder: 'yourwebsite.com.au' })
-    const ig = txt(v.instagram_url, { inputmode: 'url', autocapitalize: 'none', placeholder: 'instagram.com/yourname' })
+    const igNow = igHandle(v.instagram) || igHandle(v.instagram_url)
+    const ig = txt(igNow ? '@' + igNow : '', { autocapitalize: 'none', placeholder: '@yourbusiness' })
     const fb = txt(v.facebook_url, { inputmode: 'url', autocapitalize: 'none' })
     const tt = txt(v.tiktok_url, { inputmode: 'url', autocapitalize: 'none' })
     const b = h('button', { class: 'btn' }, 'Save contact and links')
-    b.addEventListener('click', () => save({ phone_number: phone.value.trim() || null, website_url: fixUrl(web.value), instagram_url: fixUrl(ig.value), facebook_url: fixUrl(fb.value), tiktok_url: fixUrl(tt.value) }, b))
+    b.addEventListener('click', () => save({ phone_number: phone.value.trim() || null, website_url: fixUrl(web.value), instagram: igHandle(ig.value) || '', instagram_url: igHandle(ig.value) ? 'https://instagram.com/' + igHandle(ig.value) : null, facebook_url: fixUrl(fb.value), tiktok_url: fixUrl(tt.value) }, b))
     s.append(field('Phone', phone), field('Website', web), field('Instagram', ig), h('div', { class: 'row2' }, field('Facebook', fb), field('TikTok', tt)), b)
   })
 
