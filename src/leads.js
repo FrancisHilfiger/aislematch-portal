@@ -109,8 +109,9 @@ async function renderDetail(C, view, coupleId) {
   const ansBody = h('div', { class: 'answers' }, h('div', { class: 'spin' })); ansHost.appendChild(ansBody)
   loadAnswers(C.sb, C.vendor.id, lead.coupleId).then(rows => {
     clear(ansBody)
-    if (!rows.length) ansBody.appendChild(h('div', null, h('p', { class: 'muted' }, 'No answers are shared with you yet. Couples share some answers once they match with you, and the rest unlock when a booking is confirmed.'),
-      rows.debug ? h('p', { class: 'muted small' }, 'Technical: ' + rows.debug) : null))
+    if (!rows.length) ansBody.appendChild(h('div', null,
+      h('p', { class: 'muted' }, 'They have not answered any questions specific to your category yet. Their wedding day questionnaire has the full story of their day.'),
+      h('button', { class: 'btn ghost sm', onclick: () => openWeddingDay(C, lead, names) }, 'Open wedding day questionnaire')))
     else rows.forEach(r => ansBody.appendChild(h('div', { class: 'a' }, h('div', { class: 'q' }, r.label), h('div', { class: 'r' }, r.value))))
   }).catch(() => { clear(ansBody); ansBody.appendChild(h('p', { class: 'muted' }, 'Could not load their answers.')) })
 
