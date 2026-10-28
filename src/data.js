@@ -125,13 +125,16 @@ export async function loadAnswers(sb, vendorId, coupleId) {
   const planner = (links || []).some(l => /planner|coordinat/i.test((l.categories && l.categories.name) || ''))
   let qq = sb.from('questionnaire_questions').select('key, label, group_key, sort, vendor_visible').eq('vendor_visible', true)
   if (!planner && mapped) qq = qq.in('group_key', [...groups])
-  const { data: qs } = await qq
-  const { data: ans } = await sb.from('couple_answers').select('question_key, answer').eq('couple_id', coupleId)
+  const { data: qs, error: qErr } = await qq
+  const { data: ans, error: aErr } = await sb.from('couple_answers').select('question_key, answer').eq('couple_id', coupleId)
   const am = {}; (ans || []).forEach(a => { am[a.question_key] = a.answer })
   const ordered = (qs || []).slice().sort((a, b) => (a.group_key === 'universal' ? 1 : 0) - (b.group_key === 'universal' ? 1 : 0) || a.sort - b.sort)
-  return ordered.filter(q => am[q.key] !== undefined && am[q.key] !== null).map(q => ({
+  const out = ordered.filter(q => am[q.key] !== undefined && am[q.key] !== null).map(q => ({
     label: q.label, value: Array.isArray(am[q.key]) ? am[q.key].join(', ') : String(am[q.key]),
   }))
+  out.debug = 'questions ' + (qs || []).length + ', answers readable ' + (ans || []).length + ', matched ' + out.length + (planner ? ', planner' : '') +
+    (qErr ? ', question error: ' + qErr.message : '') + (aErr ? ', answer error: ' + aErr.message : '')
+  return out
 }
 
 export function friendlyError(e) {
