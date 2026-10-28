@@ -1,4 +1,4 @@
-import { h, clear, field } from './lib.js'
+import { h, clear, field, LOGO } from './lib.js'
 
 const SECTIONS = [
   ['wd_ceremony', 'Ceremony & photos'],
@@ -18,7 +18,8 @@ function buildHtml(name, sections, word) {
   return '<!DOCTYPE html><html' + (word ? ' xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"' : '') + '><head><meta charset="utf-8"><title>Wedding day questionnaire</title><style>' +
     "body{font-family:Georgia,'Times New Roman',serif;color:#352219;margin:32px;line-height:1.5}h1{font-size:28px;margin:0 0 4px}.sub{font-family:Arial,sans-serif;font-size:12px;color:#6b5c52;margin-bottom:24px}" +
     'h2{font-size:19px;border-bottom:1px solid #c8d6de;padding-bottom:4px;margin-top:28px}.q{font-family:Arial,sans-serif;font-size:11px;color:#6b5c52;margin-top:12px}.a{font-size:14px;margin-top:2px}' +
-    '</style></head><body><h1>' + esc(name) + '</h1><div class="sub">Wedding day questionnaire · ' + esc(date) + ' · Aisle Match</div>' + (body || '<p>No answers yet.</p>') + '</body></html>'
+    '.top{border-bottom:2px solid #C3A475;padding-bottom:14px;margin-bottom:6px}.top img{height:42px}.foot{margin-top:30px;padding-top:10px;border-top:1px solid #c8d6de;font-family:Arial,sans-serif;font-size:11px;color:#6b5c52}' +
+    '</style></head><body><div class="top"><img src="' + LOGO + '" alt="Aisle Match"/></div><h1>' + esc(name) + '</h1><div class="sub">Wedding day questionnaire · ' + esc(date) + '</div>' + (body || '<p>No answers yet.</p>') + '<div class="foot">Prepared with Aisle Match</div></body></html>'
 }
 const safe = (s) => String(s || 'wedding').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').slice(0, 40) || 'wedding'
 

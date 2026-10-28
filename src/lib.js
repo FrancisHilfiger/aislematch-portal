@@ -157,3 +157,48 @@ export function toggle(on, onChange, label) {
   })
   return b
 }
+
+export const LOGO = 'https://res.cloudinary.com/dw7kndjnv/image/upload/v1782650520/Untitled_design_48_n1o4xm.png'
+
+// Branded date picker. Drop-in for <input type="date">: has .value (YYYY-MM-DD), .min, and fires 'change'.
+export function datePicker(opts) {
+  const o = opts || {}
+  let val = o.value || '', minV = o.min || '', open = false
+  const start = (val || today()).split('-').map(Number)
+  let vy = start[0], vm = start[1] - 1
+  const DOWS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+  const label = h('span', { class: 'dp-label' })
+  const trig = h('button', { class: 'input dp-trig', type: 'button', 'aria-haspopup': 'dialog' }, label, icon('cal'))
+  const panel = h('div', { class: 'dp-panel hidden' })
+  const wrap = h('div', { class: 'dp' }, trig, panel)
+  const pad = (n) => String(n).padStart(2, '0')
+  const paintLabel = () => { label.textContent = val ? fmtDate(val) : (o.placeholder || 'Choose a date'); label.classList.toggle('ph', !val) }
+  const paintPanel = () => {
+    clear(panel)
+    const first = new Date(vy, vm, 1), lead = (first.getDay() + 6) % 7, dim = new Date(vy, vm + 1, 0).getDate(), t = today()
+    panel.appendChild(h('div', { class: 'dp-head' },
+      h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Previous month', onclick: () => { vm--; if (vm < 0) { vm = 11; vy-- } paintPanel() } }, icon('back')),
+      h('div', { class: 'dp-title' }, MONL[vm] + ' ' + vy),
+      h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Next month', onclick: () => { vm++; if (vm > 11) { vm = 0; vy++ } paintPanel() } }, icon('chev'))))
+    const grid = h('div', { class: 'dp-grid' }, DOWS.map(d => h('div', { class: 'dp-dow' }, d)))
+    for (let i = 0; i < lead; i++) grid.appendChild(h('div'))
+    for (let d = 1; d <= dim; d++) {
+      const key = vy + '-' + pad(vm + 1) + '-' + pad(d)
+      const dis = !!minV && key < minV
+      grid.appendChild(h('button', { class: 'dp-day' + (key === val ? ' sel' : '') + (key === t ? ' today' : ''), type: 'button', disabled: dis, 'aria-label': fmtDate(key),
+        onclick: () => { val = key; open = false; paintAll(); wrap.dispatchEvent(new Event('change')) } }, String(d)))
+    }
+    panel.appendChild(grid)
+  }
+  const paintAll = () => { paintLabel(); panel.classList.toggle('hidden', !open); trig.setAttribute('aria-expanded', String(open)); if (open) paintPanel() }
+  trig.addEventListener('click', () => {
+    open = !open
+    if (open) { const b = (val || minV || today()).split('-').map(Number); vy = b[0]; vm = b[1] - 1 }
+    paintAll()
+  })
+  wrap.addEventListener('click', (e) => e.preventDefault())
+  Object.defineProperty(wrap, 'value', { get: () => val, set: (v) => { val = v || ''; paintAll() } })
+  Object.defineProperty(wrap, 'min', { get: () => minV, set: (v) => { minV = v || ''; paintAll() } })
+  paintAll()
+  return wrap
+}

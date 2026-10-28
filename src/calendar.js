@@ -1,4 +1,4 @@
-import { h, clear, icon, field, fmtDate, today, MONL } from './lib.js'
+import { h, clear, icon, field, fmtDate, today, MONL, datePicker } from './lib.js'
 import { loadLeads } from './data.js'
 
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -182,10 +182,10 @@ export async function renderCalendar(C, view) {
   const blockSheet = (startKey) => {
     const base = startKey < today() ? today() : startKey
     let mode = 'once', days = new Set(), every = 1, endMode = 'never'
-    const a = h('input', { class: 'input', type: 'date', min: today(), value: base })
-    const b = h('input', { class: 'input', type: 'date', min: today(), value: base })
-    const from = h('input', { class: 'input', type: 'date', min: today(), value: base })
-    const until = h('input', { class: 'input', type: 'date', min: today(), value: base })
+    const a = datePicker({ min: today(), value: base })
+    const b = datePicker({ min: today(), value: base })
+    const from = datePicker({ min: today(), value: base })
+    const until = datePicker({ min: today(), value: base })
     const why = h('input', { class: 'input', type: 'text', maxlength: '80', placeholder: 'Holiday, another job, personal' })
     a.addEventListener('change', () => { if (b.value < a.value) b.value = a.value })
     const err = h('div', { style: { color: 'var(--bad)', fontSize: '14px', marginTop: '8px' } })

@@ -1,5 +1,6 @@
 import { h, clear, fmtDate, fmtMoney, ago, initial, daysUntil, today, img } from './lib.js'
 import { loadLeads } from './data.js'
+import { goLiveChecks, fixCheck } from './profile.js'
 
 export function accessNote(C) {
   const a = C.access || {}
@@ -25,8 +26,11 @@ export async function renderOverview(C, view) {
   const note = accessNote(C)
   if (note) { view.appendChild(note); view.appendChild(h('div', { class: 'sp24' })) }
   if (!v.is_published) {
-    view.appendChild(h('div', { class: 'note warn' }, h('b', null, 'Your listing is not published yet. '), 'Couples cannot see you in the app until it is.',
-      h('div', { class: 'actions' }, h('button', { class: 'btn sm', onclick: () => C.go('profile') }, 'Review your profile'))))
+    const missing = goLiveChecks(C).filter(c => !c.ok)
+    view.appendChild(h('div', { class: 'note warn' }, h('b', null, 'Your listing is not live yet. '),
+      missing.length ? 'Couples cannot see you until these are done:' : 'Everything is ready. Switch your listing on to go live.',
+      missing.length ? h('div', { class: 'golist', style: { marginTop: '10px' } }, missing.map(c => h('div', { class: 'goitem' }, h('span', { class: 'goic' }), h('span', { class: 'gol' }, c.label), h('button', { class: 'linkbtn', onclick: () => fixCheck(C, c) }, c.action)))) : null,
+      h('div', { class: 'actions' }, h('button', { class: 'btn sm', onclick: () => { C.jump = 'Listing visibility'; C.go('profile') } }, missing.length ? 'Open my profile' : 'Go live'))))
     view.appendChild(h('div', { class: 'sp24' }))
   }
 

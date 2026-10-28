@@ -1,4 +1,4 @@
-import { h, clear, icon, field, fmtDate, fmtMoney, ago, initial, today, img } from './lib.js'
+import { h, clear, icon, field, fmtDate, fmtMoney, ago, initial, today, img, datePicker } from './lib.js'
 import { loadLeads, ensureConversation, loadAnswers } from './data.js'
 import { openWeddingDay } from './weddingday.js'
 
@@ -183,7 +183,7 @@ function bookingPanel(C, host, lead) {
 
 function formSheet(C, base, st, render, lead) {
   const prev = st.open_proposal || st.booking || {}
-  const date = h('input', { class: 'input', type: 'date', min: today(), value: (prev.event_date || lead.weddingDate || '').slice(0, 10) })
+  const date = datePicker({ min: today(), value: (prev.event_date || lead.weddingDate || '').slice(0, 10) })
   const pkgs = st.packages || []
   const pkg = h('select', { class: 'select' }, h('option', { value: '' }, 'Custom or no package'), pkgs.map(p => h('option', { value: p.id }, p.name + (p.price != null ? '  (' + fmtMoney(p.price) + ')' : ''))))
   const price = h('input', { class: 'input', type: 'number', inputmode: 'decimal', min: '0', step: '1', placeholder: '0', value: prev.price != null ? prev.price : (prev.total_amount != null ? prev.total_amount : '') })

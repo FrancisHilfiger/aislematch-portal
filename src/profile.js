@@ -41,6 +41,20 @@ export function pick(accept, multiple) {
   })
 }
 
+// What a vendor needs before they can go live. Same rules as the app.
+export function goLiveChecks(C) {
+  const v = C.vendor || {}
+  const photos = Array.isArray(v.portfolio_photos) ? v.portfolio_photos.length : 0
+  return [
+    { key: 'plan', ok: !C.access || C.access.access === 'full', label: 'Your free trial or plan must be active', action: 'Go to billing', route: 'billing' },
+    { key: 'name', ok: !!(v.business_name || '').trim(), label: 'Add your business name', action: 'Add it', sec: 'Business' },
+    { key: 'tagline', ok: !!(v.tagline || '').trim(), label: 'Write a one-line tagline', action: 'Add it', sec: 'Business' },
+    { key: 'bio', ok: !!(v.bio || '').trim(), label: 'Fill in the “About you” section', action: 'Add it', sec: 'Business' },
+    { key: 'photos', ok: photos >= 1, label: 'Upload at least one portfolio photo (three or more looks best)', action: 'Add photos', sec: 'photos' },
+  ]
+}
+export function fixCheck(C, c) { if (c.sec) C.jump = c.sec; C.go(c.route || 'profile') }
+
 const fixUrl = (s) => { s = (s || '').trim(); if (!s) return null; return /^https?:\/\//i.test(s) ? s : 'https://' + s }
 
 export async function renderProfile(C, view) {
@@ -148,7 +162,8 @@ export async function renderProfile(C, view) {
   drawVideo()
 
   /* ---- details ---- */
-  const form = (title, build) => { const s = h('div', { class: 'sec' }); s.appendChild(h('div', { class: 'sechead' }, h('h2', { class: 'h2' }, title))); build(s); view.appendChild(s) }
+  const secs = { photos: phHost }
+  const form = (title, build) => { const s = h('div', { class: 'sec' }); secs[title] = s; s.appendChild(h('div', { class: 'sechead' }, h('h2', { class: 'h2' }, title))); build(s); view.appendChild(s) }
   const txt = (val, o) => h('input', { class: 'input', type: 'text', value: val || '', ...(o || {}) })
 
   form('Business', (s) => {
@@ -190,15 +205,28 @@ export async function renderProfile(C, view) {
 
   /* ---- publish ---- */
   form('Listing visibility', (s) => {
-    const ready = () => (v.portfolio_photos || []).length >= 3 && !!v.business_name && !!v.bio
-    const row = h('div', { class: 'pill-row' },
-      h('div', null, h('div', { class: 'l1' }, 'Show my listing to couples'), h('div', { class: 'l2' }, v.is_published ? 'You are live in the app.' : 'You are hidden from couples right now.')),
-      toggle(!!v.is_published, async (on) => {
-        if (on && !ready()) { C.toast('Add your business name, an about section and at least 3 photos first.', true); drawAgain(); return }
-        if (on && C.access && C.access.access !== 'full') { C.toast('Reactivate your plan in Billing to go live.', true); drawAgain(); return }
-        await save({ is_published: on }, null, on ? 'You are live' : 'Listing hidden'); drawAgain()
-      }, 'Show my listing to couples'))
-    const drawAgain = () => C.go('profile')
-    s.appendChild(row)
+    const box = h('div'); s.appendChild(box)
+    let tried = false
+    const paint = () => {
+      clear(box)
+      const checks = goLiveChecks(C), missing = checks.filter(c => !c.ok)
+      const sw = toggle(!!v.is_published, async (on) => {
+        if (on && missing.length) { tried = true; paint(); return }
+        const ok = await save({ is_published: on }, null, on ? 'You are live' : 'Listing hidden')
+        if (ok) tried = false
+        paint()
+      }, 'Show my listing to couples')
+      box.appendChild(h('div', { class: 'pill-row' },
+        h('div', null, h('div', { class: 'l1' }, 'Show my listing to couples'), h('div', { class: 'l2' }, v.is_published ? 'You are live in the app.' : (missing.length ? 'Not live yet. ' + missing.length + (missing.length === 1 ? ' thing' : ' things') + ' to finish first.' : 'Ready. Switch this on to go live.'))), sw))
+      if (!v.is_published) {
+        box.appendChild(h('div', { class: 'golist' }, checks.map(c =>
+          h('div', { class: 'goitem' + (c.ok ? ' ok' : '') }, h('span', { class: 'goic' }, c.ok ? '✓' : ''), h('span', { class: 'gol' }, c.label),
+            c.ok ? null : h('button', { class: 'linkbtn', onclick: () => { if (c.route) fixCheck(C, c); else { const t = secs[c.sec]; if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }) } } }, c.action)))))
+        if (tried && missing.length) box.appendChild(h('div', { class: 'note warn', style: { marginTop: '12px' } }, 'You can go live once the items above are done.'))
+      }
+    }
+    paint()
   })
+
+  if (C.jump) { const t = secs[C.jump]; C.jump = null; if (t) setTimeout(() => t.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120) }
 }

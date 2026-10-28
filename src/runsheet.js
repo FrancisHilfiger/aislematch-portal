@@ -1,4 +1,4 @@
-import { h, clear, icon, fmtDate } from './lib.js'
+import { h, clear, icon, fmtDate, LOGO } from './lib.js'
 
 const esc = (s) => String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>')
 const tm = (t) => (t ? String(t).slice(0, 5) : '')
@@ -8,9 +8,21 @@ function sheetHtml(rs, name, items, parts) {
     (i.location ? '<br/><i>' + esc(i.location) + '</i>' : '') + '</td><td>' + esc((i.vendor && i.vendor.business_name) || i.responsible_party || '') + '</td></tr>').join('')
   const info = [['Ceremony', [rs.ceremony_venue, rs.ceremony_address].filter(Boolean).join(', ')], ['Reception', [rs.reception_venue, rs.reception_address].filter(Boolean).join(', ')],
     ['Emergency contact', [rs.emergency_contact_name, rs.emergency_contact_phone].filter(Boolean).join(' ')]].filter(x => x[1]).map(x => '<p><b>' + x[0] + ':</b> ' + esc(x[1]) + '</p>').join('')
-  return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Runsheet</title><style>body{font-family:Arial,sans-serif;color:#352219;margin:28px}h1{font-family:Georgia,serif;margin:0}table{border-collapse:collapse;width:100%;margin-top:14px}td,th{border-bottom:1px solid #c8d6de;padding:8px;text-align:left;vertical-align:top;font-size:13px}</style></head><body><h1>' +
-    esc(name) + '</h1><p>' + esc(rs.wedding_date ? fmtDate(rs.wedding_date) : '') + '</p>' + info + '<table><tr><th>Time</th><th>What</th><th>Who</th></tr>' + rows + '</table>' +
-    (parts.length ? '<p><b>Vendors:</b> ' + esc(parts.map(p => (p.vendor && p.vendor.business_name) || '').filter(Boolean).join(', ')) + '</p>' : '') + '</body></html>'
+  const css = "body{font-family:Arial,Helvetica,sans-serif;color:#352219;margin:0;padding:34px 40px;background:#fff}" +
+    ".top{display:flex;align-items:center;justify-content:space-between;padding-bottom:16px;border-bottom:2px solid #C3A475}.top img{height:44px}.top .tag{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#6b5c52}" +
+    "h1{font-family:Georgia,'Times New Roman',serif;font-size:34px;margin:22px 0 2px;font-weight:700}.date{font-size:14px;color:#6b5c52;margin:0 0 18px}" +
+    ".info{background:#fbf8f3;border:1px solid #e6dfd3;border-radius:8px;padding:12px 16px;margin-bottom:8px}.info p{margin:4px 0;font-size:13px}" +
+    "table{border-collapse:collapse;width:100%;margin-top:14px}th{background:#352219;color:#fbf8f3;font-size:11px;letter-spacing:.1em;text-transform:uppercase;text-align:left;padding:9px 10px}" +
+    "td{border-bottom:1px solid #c8d6de;padding:10px;text-align:left;vertical-align:top;font-size:13px}td:first-child{white-space:nowrap;font-weight:600;width:110px}" +
+    ".foot{margin-top:26px;padding-top:12px;border-top:1px solid #c8d6de;font-size:11px;color:#6b5c52;display:flex;justify-content:space-between}" +
+    "@media print{body{padding:18px 22px}th{-webkit-print-color-adjust:exact;print-color-adjust:exact}.top{-webkit-print-color-adjust:exact}}"
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Run sheet - ' + esc(name) + '</title><style>' + css + '</style></head><body>' +
+    '<div class="top"><img src="' + LOGO + '" alt="Aisle Match"/><div class="tag">Wedding day run sheet</div></div>' +
+    '<h1>' + esc(name) + '</h1><p class="date">' + esc(rs.wedding_date ? fmtDate(rs.wedding_date) : '') + '</p>' +
+    (info ? '<div class="info">' + info + '</div>' : '') +
+    '<table><tr><th>Time</th><th>What</th><th>Who</th></tr>' + rows + '</table>' +
+    (parts.length ? '<p style="font-size:13px"><b>Vendors:</b> ' + esc(parts.map(p => (p.vendor && p.vendor.business_name) || '').filter(Boolean).join(', ')) + '</p>' : '') +
+    '<div class="foot"><span>Prepared with Aisle Match</span><span>' + esc(new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })) + '</span></div></body></html>'
 }
 
 export async function renderRunsheet(C, view, parts) {
@@ -66,8 +78,8 @@ export async function renderRunsheet(C, view, parts) {
       items = it.data || []; parts2 = pa.data || []
     } catch (e) { clear(body); body.appendChild(h('p', { class: 'muted' }, C.err(e))); return }
     clear(body)
-    body.appendChild(h('h2', { class: 'h2' }, cur._name))
-    if (cur.wedding_date) body.appendChild(h('p', { class: 'muted' }, fmtDate(cur.wedding_date)))
+    body.appendChild(h('div', { class: 'rs-head' }, h('img', { class: 'rs-logo', src: LOGO, alt: 'Aisle Match' }),
+      h('div', null, h('div', { class: 'eyebrow' }, 'Wedding day run sheet'), h('h2', { class: 'rs-name' }, cur._name), cur.wedding_date ? h('p', { class: 'muted', style: { margin: '2px 0 0' } }, fmtDate(cur.wedding_date)) : null)))
     const kv = []
     const add = (k, v) => { if (v) kv.push(h('div', null, h('span', { class: 'k' }, k), h('span', { class: 'v' }, v))) }
     add('Ceremony', [cur.ceremony_venue, cur.ceremony_address].filter(Boolean).join(', '))
