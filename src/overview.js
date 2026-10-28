@@ -49,8 +49,11 @@ export async function renderOverview(C, view) {
   const sum = (k) => wk.reduce((a, r) => a + (r[k] || 0), 0)
   const unread = cv.reduce((a, r) => a + (r.vendor_unread_count || 0), 0)
   const open = leads.filter(l => l.tab === 'leads')
-  const upcoming = bk.filter(b => ['confirmed', 'deposited', 'paid'].includes(b.status) && b.event_date && b.event_date >= t)
-    .sort((a, b) => a.event_date < b.event_date ? -1 : 1)
+  const upcoming = bk.filter(b => ['confirmed', 'deposited', 'paid'].includes(b.status) && (!b.event_date || b.event_date >= t))
+    .sort((a, b) => !a.event_date ? 1 : !b.event_date ? -1 : a.event_date < b.event_date ? -1 : 1)
+  // refresh when a booking or lead changes
+  let ot = null
+  C.onDataChange = () => { clearTimeout(ot); ot = setTimeout(() => { clear(view); renderOverview(C, view) }, 450) }
 
   const stat = (n, l) => h('div', { class: 'stat' }, h('div', { class: 'n' }, String(n)), h('div', { class: 'l' }, l))
   clear(statsHost)
@@ -62,13 +65,13 @@ export async function renderOverview(C, view) {
   const lm = {}; leads.forEach(l => { lm[l.coupleId] = l })
   if (upcoming.length) {
     nextHost.appendChild(h('div', { class: 'sec' },
-      h('div', { class: 'sechead' }, h('h2', { class: 'h2' }, 'Coming up')),
+      h('div', { class: 'sechead' }, h('h2', { class: 'h2' }, 'Booked weddings')),
       h('div', { class: 'list', style: { borderTop: '0' } }, upcoming.slice(0, 4).map(b => {
         const l = lm[b.couple_id]
         return h('button', { class: 'item', onclick: () => C.go('leads/' + b.couple_id) },
           h('div', { class: 'avatar' }, l && l.avatar ? h('img', { src: img(l.avatar, 120), alt: '', loading: 'lazy' }) : initial(l ? l.coupleName : 'C')),
-          h('div', { class: 'body' }, h('div', { class: 't' }, l ? l.coupleName : 'Couple'), h('div', { class: 's' }, fmtDate(b.event_date) + (b.total_amount ? '  ·  ' + fmtMoney(b.total_amount) : ''))),
-          h('span', { class: 'tag ' + (b.status === 'confirmed' ? '' : 'ok') }, b.status))
+          h('div', { class: 'body' }, h('div', { class: 't' }, l ? l.coupleName : 'Couple'), h('div', { class: 's' }, (b.event_date ? fmtDate(b.event_date) : 'Date to be confirmed') + (b.total_amount ? '  ·  ' + fmtMoney(b.total_amount) : ''))),
+          h('span', { class: 'tag ' + (b.status === 'confirmed' ? '' : 'ok') }, b.status === 'confirmed' ? 'Booked' : b.status))
       }))))
   }
 
@@ -81,7 +84,7 @@ export async function renderOverview(C, view) {
         h('button', { class: 'item' + (l.unread ? ' unread' : ''), onclick: () => C.go('leads/' + l.coupleId) },
           h('div', { class: 'avatar' }, l.avatar ? h('img', { src: img(l.avatar, 120), alt: '', loading: 'lazy' }) : initial(l.coupleName)),
           h('div', { class: 'body' }, h('div', { class: 't' }, l.coupleName + (l.partnerName ? ' & ' + l.partnerName : '')),
-            h('div', { class: 's' }, [fmtDate(l.weddingDate), l.location].filter(Boolean).join('  ·  '))),
+            h('div', { class: 's' }, [fmtDate(l.bookedDate || l.weddingDate), l.location].filter(Boolean).join('  ·  '))),
           l.isNew ? h('span', { class: 'tag new' }, 'New') : h('span', { class: 'tiny' }, ago(l.createdAt)))))
       : h('div', { class: 'empty' }, h('h3', { class: 'h3' }, 'No open leads right now'),
         h('p', null, 'When a couple saves your profile they show up here. A complete profile with strong photos gets saved more.'),

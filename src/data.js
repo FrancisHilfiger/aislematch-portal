@@ -5,7 +5,8 @@ export const NEW_WINDOW = 48 * 3600 * 1000
 // Which tab a lead lives in. Same rule as the app.
 export function tabOf(m) {
   const t = today()
-  const past = !!m.weddingDate && String(m.weddingDate).slice(0, 10) < t
+  const d = m.bookedDate || m.weddingDate
+  const past = !!d && String(d).slice(0, 10) < t
   if (m.vendorStatus === 'completed') return 'completed'
   if (m.isBooked || m.vendorStatus === 'upcoming') return past ? 'completed' : 'upcoming'
   return 'leads'
@@ -31,6 +32,17 @@ async function couplesAndUsers(sb, coupleIds) {
   return { cm, um }
 }
 
+// couple_id -> { date, status } for this vendor's live bookings (the date they agreed in the booking flow)
+export async function bookingDates(sb, vendorId) {
+  const out = {}
+  try {
+    const { data } = await sb.from('bookings').select('couple_id, event_date, status, created_at')
+      .eq('vendor_id', vendorId).in('status', ['confirmed', 'deposited', 'paid']).order('created_at', { ascending: false })
+    ;(data || []).forEach(b => { if (!out[b.couple_id]) out[b.couple_id] = { date: b.event_date || null, status: b.status } })
+  } catch (e) { /* dates are a nice-to-have */ }
+  return out
+}
+
 export async function loadLeads(sb, vendorId) {
   const { data, error } = await sb.from('matches')
     .select('id, couple_id, is_shortlisted, created_at, is_booked, vendor_status, conversations ( id, last_message_preview, last_message_at, vendor_unread_count )')
@@ -38,7 +50,7 @@ export async function loadLeads(sb, vendorId) {
     .order('created_at', { ascending: false })
   if (error) throw error
   if (!data || !data.length) return []
-  const { cm, um } = await couplesAndUsers(sb, data.map(m => m.couple_id))
+  const [{ cm, um }, bd] = await Promise.all([couplesAndUsers(sb, data.map(m => m.couple_id)), bookingDates(sb, vendorId)])
   const now = Date.now()
   return data.map(m => {
     const c = cm[m.couple_id] || {}
@@ -49,6 +61,7 @@ export async function loadLeads(sb, vendorId) {
       matchId: m.id, coupleId: m.couple_id,
       coupleName: coupleLabel(u, c), partnerName: c.partner_name || null,
       weddingDate: c.wedding_date || null, location: loc || null,
+      bookedDate: (bd[m.couple_id] && bd[m.couple_id].date) || null, hasBooking: !!bd[m.couple_id],
       styles: c.wedding_styles || null, guests: c.guest_count_estimate || null, budget: c.budget_total || null,
       avatar: u.avatar_url || null,
       convId: (conv && conv.id) || null, preview: (conv && conv.last_message_preview) || null,
@@ -68,6 +81,7 @@ export async function loadConvs(sb, vendorId) {
     .order('last_message_at', { ascending: false, nullsFirst: false })
   if (error) throw error
   const rows = data || []
+  const bd = await bookingDates(sb, vendorId)
   const uids = [...new Set(rows.map(c => c.couples && c.couples.user_id).filter(Boolean))]
   const um = {}
   if (uids.length) {
@@ -78,6 +92,7 @@ export async function loadConvs(sb, vendorId) {
     const couple = c.couples || {}
     const u = um[couple.user_id] || {}
     return { ...c, coupleName: coupleLabel(u, couple), partnerName: couple.partner_name || null, weddingDate: couple.wedding_date || null,
+      bookedDate: (bd[c.couple_id] && bd[c.couple_id].date) || null,
       location: [couple.venue_location, couple.venue_state].filter(Boolean).join(', ') || null, avatar: u.avatar_url || null }
   })
 }
@@ -98,15 +113,19 @@ export async function ensureConversation(sb, vendorId, lead) {
 }
 
 export async function loadAnswers(sb, vendorId, coupleId) {
-  const { data: links } = await sb.from('vendor_category_links').select('category_id').eq('vendor_id', vendorId)
+  const { data: links } = await sb.from('vendor_category_links').select('category_id, categories(name)').eq('vendor_id', vendorId)
   const catIds = (links || []).map(l => l.category_id)
   const groups = new Set(['universal'])
+  let mapped = 0
   if (catIds.length) {
     const { data: gs } = await sb.from('category_question_groups').select('group_key').in('category_id', catIds)
-    ;(gs || []).forEach(g => groups.add(g.group_key))
+    ;(gs || []).forEach(g => { groups.add(g.group_key); mapped++ })
   }
-  const { data: qs } = await sb.from('questionnaire_questions').select('key, label, group_key, sort, vendor_visible')
-    .in('group_key', [...groups]).eq('vendor_visible', true)
+  // Planners and coordinators run the whole day, so they see every answer the couple has shared with vendors.
+  const planner = (links || []).some(l => /planner|coordinat/i.test((l.categories && l.categories.name) || ''))
+  let qq = sb.from('questionnaire_questions').select('key, label, group_key, sort, vendor_visible').eq('vendor_visible', true)
+  if (!planner && mapped) qq = qq.in('group_key', [...groups])
+  const { data: qs } = await qq
   const { data: ans } = await sb.from('couple_answers').select('question_key, answer').eq('couple_id', coupleId)
   const am = {}; (ans || []).forEach(a => { am[a.question_key] = a.answer })
   const ordered = (qs || []).slice().sort((a, b) => (a.group_key === 'universal' ? 1 : 0) - (b.group_key === 'universal' ? 1 : 0) || a.sort - b.sort)

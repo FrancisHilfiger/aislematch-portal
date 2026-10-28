@@ -15,15 +15,20 @@ function dayLabel(iso) {
 const BOOK_KIND = {
   proposal: ['BOOKING REQUEST', 'sent a booking request'], accepted: ['BOOKING CONFIRMED', 'accepted the booking'], declined: ['REQUEST DECLINED', 'declined the request'],
   withdrawn: ['REQUEST WITHDRAWN', 'withdrew the request'], cancelled: ['BOOKING CANCELLED', 'cancelled the booking'],
+  amended: ['CHANGE REQUESTED', 'requested a change'], changed: ['CHANGE ACCEPTED', 'accepted the change'],
 }
 function bookingCard(m, mine, onView) {
-  const md = m.metadata || {}; const k = BOOK_KIND[md.kind] || BOOK_KIND.proposal
+  const md = m.metadata || {}
+  const kind = md.kind === 'proposal' && md.amended ? 'amended' : md.kind === 'accepted' && md.amended ? 'changed' : md.kind
+  const k = BOOK_KIND[kind] || BOOK_KIND.proposal
   const row = (a, b) => (b ? h('div', { class: 'row' }, h('span', null, a), h('span', null, b)) : null)
   const money = (n) => (n === null || n === undefined || n === '' ? '' : '$' + Number(n).toLocaleString('en-AU'))
   return h('div', { class: 'bookcard' + (mine ? ' me' : '') },
     h('div', { class: 'kick' }, k[0]), h('div', { class: 'ttl' }, (mine ? 'You' : (md.by_name || 'They')) + ' ' + k[1]),
-    row('Date', md.event_date ? fmtDate(md.event_date) : ''), row('Package', md.package_name), row('Price', money(md.price)), row('Deposit', money(md.deposit)),
+    row(kind === 'amended' ? 'New date' : 'Date', md.event_date ? fmtDate(md.event_date) : ''),
+    row('Was', kind === 'amended' && md.previous_date && md.previous_date !== md.event_date ? fmtDate(md.previous_date) : ''), row('Package', md.package_name), row('Price', money(md.price)), row('Deposit', money(md.deposit)),
     md.reason ? h('div', { class: 'muted small', style: { marginTop: '6px', fontStyle: 'italic' } }, '\u201c' + md.reason + '\u201d') : null,
+    md.notes && kind !== 'accepted' && kind !== 'changed' ? h('div', { class: 'muted small', style: { marginTop: '6px', fontStyle: 'italic' } }, '\u201c' + md.notes + '\u201d') : null,
     h('div', { class: 'sp8' }), h('button', { class: 'btn sm block', onclick: onView }, 'View booking'),
     h('span', { class: 'tm' }, clock(m.created_at)))
 }
@@ -74,7 +79,9 @@ export function renderMessages(C, view, parts, main) {
       return
     }
     const msgsEl = h('div', { class: 'msgs', role: 'log', 'aria-live': 'polite' })
-    const leadOf = () => ({ coupleId: conv.couple_id, matchId: conv.match_id, weddingDate: conv.weddingDate })
+    const typingEl = h('div', { class: 'typing', 'aria-live': 'polite', hidden: '' }, h('span', { class: 'dots' }, h('i'), h('i'), h('i')), h('span', null, 'typing'))
+    typingEl.hidden = true
+    const leadOf = () => ({ coupleId: conv.couple_id, matchId: conv.match_id, weddingDate: conv.weddingDate || conv.bookedDate })
     const input = h('textarea', { rows: '1', placeholder: 'Write a message', 'aria-label': 'Message' })
     const sendBtn = h('button', { class: 'btn', 'aria-label': 'Send', type: 'button' }, icon('send'))
     const attachBtn = h('button', { class: 'iconbtn', 'aria-label': 'Add to chat', type: 'button', style: { flex: 'none', height: '46px' } }, icon('plus'))
@@ -88,10 +95,10 @@ export function renderMessages(C, view, parts, main) {
       h('div', { class: 'thead' },
         h('button', { class: 'iconbtn', 'aria-label': 'Back to messages', onclick: () => C.go('messages'), style: { } }, icon('back')),
         h('div', { class: 'who' }, h('div', { class: 't' }, conv.coupleName + (conv.partnerName ? ' & ' + conv.partnerName : '')),
-          h('div', { class: 's' }, [conv.weddingDate ? fmtDate(conv.weddingDate) : null, conv.location].filter(Boolean).join('  ·  ') || 'Couple')),
+          h('div', { class: 's' }, [(conv.bookedDate || conv.weddingDate) ? fmtDate(conv.bookedDate || conv.weddingDate) : null, conv.location].filter(Boolean).join('  ·  ') || 'Couple')),
         h('button', { class: 'linkbtn', style: { minHeight: '44px', padding: '0 12px' }, onclick: () => C.go('leads/' + conv.couple_id) }, 'Profile'),
         arch),
-      msgsEl,
+      msgsEl, typingEl,
       h('div', { class: 'compose' }, attachBtn, input, sendBtn))
     threadcol.appendChild(thread)
     msgsEl.appendChild(h('div', { class: 'spin' }))
@@ -114,7 +121,8 @@ export function renderMessages(C, view, parts, main) {
       })
       msgsEl.scrollTop = msgsEl.scrollHeight
     }
-    const markRead = () => C.sb.rpc('reset_unread_count', { conv_id: conv.id, reader_is_couple: false }).then(() => C.refreshBadges && C.refreshBadges())
+    // Marks every message from the couple as read and clears the unread badge
+    const markRead = () => C.sb.rpc('mark_conversation_read', { p_conv: conv.id }).then(() => C.refreshBadges && C.refreshBadges())
 
     try {
       const { data, error } = await C.sb.from('messages').select('*').eq('conversation_id', conv.id).order('created_at', { ascending: true }).limit(300)
@@ -124,19 +132,27 @@ export function renderMessages(C, view, parts, main) {
       draw(); markRead()
     } catch (e) { clear(msgsEl); msgsEl.appendChild(h('div', { class: 'empty' }, h('p', null, C.err(e)))) }
 
-    const ch = C.sb.channel('vt:' + conv.id)
+    const ch = C.sb.channel('chat:' + conv.id)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: 'conversation_id=eq.' + conv.id }, (p) => {
         const nm = p.new; if (!nm || seen.has(nm.id)) return
         seen.add(nm.id); msgs.push(nm); draw()
-        if (nm.sender_id !== C.user.id) {
-          C.sb.from('messages').update({ is_read: true, read_at: new Date().toISOString() }).eq('id', nm.id).then(() => {})
-          markRead()
-        }
+        if (nm.sender_id !== C.user.id) markRead()
+        typingEl.hidden = true
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: 'conversation_id=eq.' + conv.id }, (p) => {
         const u = p.new; msgs = msgs.map(m => m.id === u.id ? { ...m, ...u } : m); draw()
       })
-      .subscribe()
+      .on('presence', { event: 'sync' }, () => {
+        const st = ch.presenceState()
+        const other = Object.values(st).flat().some(s => s && s.userId !== C.user.id && s.typing)
+        typingEl.hidden = !other
+        if (other) msgsEl.scrollTop = msgsEl.scrollHeight
+      })
+      .subscribe((status) => { if (status === 'SUBSCRIBED') Promise.resolve().then(() => ch.track({ userId: C.user.id, typing: false })) })
+
+    // tell the couple when we are writing
+    let typingOn = false, typingT = null
+    const setTyping = (v) => { if (typingOn === v) return; typingOn = v; try { ch.track({ userId: C.user.id, typing: v }) } catch (e) { /* ignore */ } }
 
     let sending = false
     const sendPhoto = async () => {
@@ -160,7 +176,7 @@ export function renderMessages(C, view, parts, main) {
       const text = input.value.trim()
       if (!text || sending) return
       sending = true; sendBtn.disabled = true
-      input.value = ''; input.style.height = 'auto'
+      input.value = ''; input.style.height = 'auto'; setTyping(false)
       try {
         const { data: msg, error } = await C.sb.from('messages').insert({ conversation_id: conv.id, sender_id: C.user.id, body: text, is_read: false }).select('*').single()
         if (error) throw error
@@ -171,13 +187,17 @@ export function renderMessages(C, view, parts, main) {
       input.focus()
     }
     sendBtn.addEventListener('click', send)
-    input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 120) + 'px' })
+    input.addEventListener('input', () => {
+      input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 120) + 'px'
+      clearTimeout(typingT)
+      if (input.value.trim()) { setTyping(true); typingT = setTimeout(() => setTyping(false), 2500) } else setTyping(false)
+    })
     input.addEventListener('keydown', (e) => {
       // Enter sends on desktop; on touch devices Enter makes a new line
       const touch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches
       if (e.key === 'Enter' && !e.shiftKey && !touch) { e.preventDefault(); send() }
     })
-    threadCleanup = () => { try { C.sb.removeChannel(ch) } catch (e) { /* ignore */ } }
+    threadCleanup = () => { clearTimeout(typingT); try { markRead() } catch (e) { /* ignore */ } try { C.sb.removeChannel(ch) } catch (e) { /* ignore */ } }
   }
 
   const placeholder = () => {

@@ -207,6 +207,9 @@ function boot(cfg) {
     const ch = sb.channel('portal:' + id)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations', filter: 'vendor_id=eq.' + id }, () => { refreshBadges(); C.onConvChange && C.onConvChange() })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'vendor_notifications', filter: 'vendor_id=eq.' + id }, () => { refreshBadges(); C.onNotifChange && C.onNotifChange() })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: 'vendor_id=eq.' + id }, () => { C.onDataChange && C.onDataChange() })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches', filter: 'vendor_id=eq.' + id }, () => { C.onDataChange && C.onDataChange() })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'booking_proposals', filter: 'vendor_id=eq.' + id }, () => { C.onDataChange && C.onDataChange() })
       .subscribe()
     C.channels.push(ch)
   }
@@ -222,7 +225,7 @@ function boot(cfg) {
   }
   function cleanup() {
     if (typeof C.cleanup === 'function') { try { C.cleanup() } catch (e) { /* ignore */ } }
-    C.cleanup = null; C.onConvChange = null; C.onNotifChange = null
+    C.cleanup = null; C.onConvChange = null; C.onNotifChange = null; C.onDataChange = null
   }
   function route() {
     if (!C.user || !C.vendor || !els.main) return

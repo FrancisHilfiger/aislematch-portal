@@ -74,9 +74,9 @@ export function ymd(d) {
 }
 export function today() { return ymd(new Date()) }
 export function fmtDate(iso) {
-  if (!iso) return 'Date TBC'
+  if (!iso) return 'Date not set yet'
   const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number)
-  if (!y) return 'Date TBC'
+  if (!y) return 'Date not set yet'
   return d + ' ' + MON[m - 1] + ' ' + y
 }
 export function fmtMoney(n) {

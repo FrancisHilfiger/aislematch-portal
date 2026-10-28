@@ -1,5 +1,6 @@
 import { h, clear, icon, field, toggle, ago, fmtDate, fmtMoney, daysUntil } from './lib.js'
 import { accessNote } from './overview.js'
+import { loadLeads } from './data.js'
 
 /* ---------------- notifications ---------------- */
 export async function renderNotifications(C, view) {
@@ -12,10 +13,34 @@ export async function renderNotifications(C, view) {
     if (error) throw error
     rows = data || []
   }
-  const target = (n) => {
+  // Works out which couple a notification is about. New ones carry the couple id; older ones are matched by the
+  // couple's name at the start of the message ("Kass & Chev accepted ...").
+  let leadCache = null
+  const coupleFor = async (n) => {
+    const md = n.metadata || {}
+    if (md.couple_id) return md.couple_id
+    const convId = md.conversation_id || md.conv_id
+    if (convId) {
+      const { data } = await C.sb.from('conversations').select('couple_id').eq('id', convId).maybeSingle()
+      if (data && data.couple_id) return data.couple_id
+    }
+    try {
+      if (!leadCache) leadCache = await loadLeads(C.sb, C.vendor.id)
+      const text = ((n.body || '') + ' ' + (n.title || '')).toLowerCase()
+      const hits = leadCache.filter(l => {
+        const first = (l.coupleName || '').split(' ')[0].toLowerCase()
+        if (!first) return false
+        const full = first + (l.partnerName ? ' & ' + l.partnerName.toLowerCase() : '')
+        return (n.body || '').toLowerCase().startsWith(full) || text.indexOf(l.coupleName.toLowerCase()) >= 0
+      })
+      if (hits.length === 1) return hits[0].coupleId
+    } catch (e) { /* fall through to the list */ }
+    return null
+  }
+  const target = async (n) => {
     const md = n.metadata || {}
     if (n.type === 'new_message') { const id = md.conversation_id || md.conv_id; return id ? 'messages/' + id : 'messages' }
-    if (/booking|match|runsheet/.test(n.type)) return md.couple_id ? 'leads/' + md.couple_id : 'leads'
+    if (/booking|match|runsheet/.test(n.type)) { const cid = await coupleFor(n); return cid ? 'leads/' + cid : 'leads' }
     return null
   }
   const draw = () => {
@@ -36,7 +61,7 @@ export async function renderNotifications(C, view) {
     host.appendChild(h('div', { class: 'list' }, rows.map(n =>
       h('button', { class: 'item' + (n.is_read ? '' : ' unread'), onclick: async () => {
         if (!n.is_read) { n.is_read = true; C.sb.from('vendor_notifications').update({ is_read: true }).eq('id', n.id).then(() => C.refreshBadges()) }
-        const t = target(n); if (t) C.go(t); else draw()
+        const t = await target(n); if (t) C.go(t); else draw()
       } },
         h('div', { class: 'body' }, h('div', { class: 't', style: { whiteSpace: 'normal' } }, n.title), h('div', { class: 's', style: { whiteSpace: 'normal' } }, n.body)),
         h('div', { class: 'meta' }, n.is_read ? null : h('span', { class: 'tag new' }, 'New'), h('div', null, ago(n.created_at)))))))
