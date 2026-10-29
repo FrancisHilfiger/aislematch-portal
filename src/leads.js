@@ -87,8 +87,13 @@ async function renderDetail(C, view, coupleId) {
   const msgBtn = h('button', { class: 'btn' }, icon('chat'), 'Message')
   msgBtn.addEventListener('click', async () => {
     msgBtn.disabled = true
-    try { const conv = await ensureConversation(C.sb, C.vendor.id, lead); C.go('messages/' + conv.id) }
-    catch (e) { msgBtn.disabled = false; C.toast(C.err(e), true) }
+    // never leave the button stuck grey: it comes back after 6 seconds whatever happens
+    const unstick = setTimeout(() => { msgBtn.disabled = false }, 6000)
+    try {
+      // a chat that already exists opens straight away, no lookup
+      const id = lead.convId || (await ensureConversation(C.sb, C.vendor.id, lead)).id
+      C.go('messages/' + id)
+    } catch (e) { msgBtn.disabled = false; clearTimeout(unstick); C.toast(C.err(e), true) }
   })
   host.appendChild(h('div', { class: 'sp24' }))
   const wdBtn = h('button', { class: 'btn ghost' }, 'Wedding day questionnaire')
