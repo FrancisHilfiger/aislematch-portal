@@ -189,11 +189,13 @@ function boot(cfg) {
   async function refreshBadges() {
     if (!C.vendor) return
     try {
-      const [c, n] = await Promise.all([
+      const [c, n, g] = await Promise.all([
         sb.from('conversations').select('vendor_unread_count').eq('vendor_id', C.vendor.id).eq('is_archived_by_vendor', false),
-        sb.from('vendor_notifications').select('id').eq('vendor_id', C.vendor.id).eq('is_read', false),
+        sb.from('vendor_notifications').select('id').eq('vendor_id', C.vendor.id).eq('is_read', false).not('type', 'in', '(new_message,message_reaction)'),
+        sb.rpc('my_group_chats'),
       ])
-      C.badges.msgs = ((c.data) || []).reduce((a, r) => a + (r.vendor_unread_count || 0), 0)
+      const gsum = ((g && g.data) || []).filter(x => !x.archived && !x.muted).reduce((a, r) => a + (r.unread_count || 0), 0)
+      C.badges.msgs = ((c.data) || []).reduce((a, r) => a + (r.vendor_unread_count || 0), 0) + gsum
       C.badges.notifs = ((n.data) || []).length
       refreshChrome()
     } catch (e) { /* badges are best effort */ }
@@ -206,16 +208,26 @@ function boot(cfg) {
     const id = C.vendor.id
     const ch = sb.channel('portal:' + id)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations', filter: 'vendor_id=eq.' + id }, () => { refreshBadges(); C.onConvChange && C.onConvChange() })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'vendor_notifications', filter: 'vendor_id=eq.' + id }, (p) => {
+        const n = p.new || {}
+        if (n.type === 'new_message') {
+          const md = n.metadata || {}; const cid = md.conversation_id || md.conv_id
+          if (cid && C.openConvId === cid) return
+          mkToast(root, (n.title || 'New message') + (n.body ? ': ' + n.body : ''), false, () => C.go(cid ? 'messages/' + cid : 'messages'))
+        }
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'vendor_notifications', filter: 'vendor_id=eq.' + id }, () => { refreshBadges(); C.onNotifChange && C.onNotifChange() })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: 'vendor_id=eq.' + id }, () => { C.onDataChange && C.onDataChange() })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches', filter: 'vendor_id=eq.' + id }, () => { C.onDataChange && C.onDataChange() })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'booking_proposals', filter: 'vendor_id=eq.' + id }, () => { C.onDataChange && C.onDataChange() })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversation_members', filter: 'user_id=eq.' + C.user.id }, () => { refreshBadges() })
       .subscribe()
     C.channels.push(ch)
+    // keeps "Active now" fresh for couples while the portal is open
+    const beat = () => { if (!document.hidden) sb.rpc('touch_presence').then(() => {}, () => {}) }
+    beat(); C.beat = setInterval(beat, 45000)
   }
   function stopRealtime() {
     C.channels.forEach(ch => { try { sb.removeChannel(ch) } catch (e) { /* ignore */ } })
     C.channels = []
+    if (C.beat) { clearInterval(C.beat); C.beat = null }
   }
 
   /* ---------- router ---------- */
@@ -225,7 +237,7 @@ function boot(cfg) {
   }
   function cleanup() {
     if (typeof C.cleanup === 'function') { try { C.cleanup() } catch (e) { /* ignore */ } }
-    C.cleanup = null; C.onConvChange = null; C.onNotifChange = null; C.onDataChange = null
+    C.cleanup = null; C.onConvChange = null; C.onNotifChange = null
   }
   function route() {
     if (!C.user || !C.vendor || !els.main) return

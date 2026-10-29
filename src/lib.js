@@ -50,6 +50,18 @@ const P = {
   star: 'M12 3.8l2.5 5.2 5.7.8-4.1 4 1 5.7L12 16.9 6.9 19.5l1-5.7-4.1-4 5.7-.8z',
   attach: 'M20 11.5l-8 8a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4L15 7',
   tick: 'M5 12.5 10 17.5 19 7',
+  reply: 'M9 14 4 9l5-5M20 20v-7a4 4 0 0 0-4-4H4',
+  smile: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8 14s1.5 2 4 2 4-2 4-2M9 9.5h.01M15 9.5h.01',
+  pin: 'M12 17v5M9 3h6l-1 6 3 3H7l3-3z',
+  users: 'M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20M10 12a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM20 20v-1.5a3.5 3.5 0 0 0-2.6-3.4M15.5 5.2a3.5 3.5 0 0 1 0 6.6',
+  copy: 'M9 9h10v10H9zM5 15V5h10',
+  checks: 'M2 13l4 4L14 8M10 15l2 2 9-10',
+  search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4',
+  flag: 'M5 21V4M5 4h11l-2 4 2 4H5',
+  bellOff: 'M6 16.5V11a6 6 0 0 1 9-5.2M18 11v5.5l1.5 1.5H8M10 20.5h4M4 4l16 16',
+  edit: 'M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4',
+  archive: 'M4 5h16v4H4zM5 9v10h14V9M10 13h4',
+  down: 'M12 5v14M6 13l6 6 6-6',
 }
 export function icon(name) {
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
@@ -74,9 +86,9 @@ export function ymd(d) {
 }
 export function today() { return ymd(new Date()) }
 export function fmtDate(iso) {
-  if (!iso) return 'Date not set yet'
+  if (!iso) return 'Date TBC'
   const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number)
-  if (!y) return 'Date not set yet'
+  if (!y) return 'Date TBC'
   return d + ' ' + MON[m - 1] + ' ' + y
 }
 export function fmtMoney(n) {
@@ -117,10 +129,11 @@ export function img(url, w) {
 }
 
 let toastTimer = null
-export function toast(root, msg, bad) {
+export function toast(root, msg, bad, onClick) {
   const old = root.querySelector('.toast')
   if (old) old.remove()
-  const t = h('div', { class: 'toast' + (bad ? ' bad' : ''), role: 'status' }, msg)
+  const t = h('div', { class: 'toast' + (bad ? ' bad' : '') + (onClick ? ' tap' : ''), role: 'status' }, msg)
+  if (onClick) t.addEventListener('click', () => { t.remove(); onClick() })
   root.appendChild(t)
   clearTimeout(toastTimer)
   toastTimer = setTimeout(() => t.remove(), bad ? 4500 : 2400)

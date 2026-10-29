@@ -14,9 +14,6 @@ export async function renderLeads(C, view, parts) {
   try { all = await loadLeads(C.sb, C.vendor.id) } catch (e) { clear(host); host.appendChild(h('div', { class: 'empty' }, h('h2', { class: 'h3' }, 'Could not load leads'), h('p', null, C.err(e)))); return }
   let tab = 'leads'
   try { const s = sessionStorage.getItem('ap-leadtab'); if (s) tab = s } catch (e) { /* ignore */ }
-  // a booking confirmed / cancelled elsewhere moves the couple between tabs straight away
-  let lt = null
-  C.onDataChange = () => { clearTimeout(lt); lt = setTimeout(async () => { try { all = await loadLeads(C.sb, C.vendor.id); draw() } catch (e) { /* keep list */ } }, 350) }
 
   const draw = () => {
     clear(host)
@@ -35,7 +32,7 @@ export async function renderLeads(C, view, parts) {
         h('div', { class: 'avatar' }, l.avatar ? h('img', { src: img(l.avatar, 120), alt: '', loading: 'lazy' }) : initial(l.coupleName)),
         h('div', { class: 'body' },
           h('div', { class: 't' }, l.coupleName + (l.partnerName ? ' & ' + l.partnerName : '')),
-          h('div', { class: 's' }, l.preview || [fmtDate(l.bookedDate || l.weddingDate), l.location].filter(Boolean).join('  ·  '))),
+          h('div', { class: 's' }, l.preview || [fmtDate(l.weddingDate), l.location].filter(Boolean).join('  ·  '))),
         h('div', { class: 'meta' },
           l.isNew ? h('span', { class: 'tag new' }, 'New') : (l.unread ? h('span', { class: 'tag new' }, String(l.unread)) : null),
           h('div', null, ago(l.lastAt || l.createdAt)))))))
@@ -51,31 +48,18 @@ async function renderDetail(C, view, coupleId) {
   let all = []
   try { all = await loadLeads(C.sb, C.vendor.id) } catch (e) { clear(host); host.appendChild(h('p', { class: 'muted' }, C.err(e))); return }
   const lead = all.find(l => l.coupleId === coupleId)
-  // refresh this page when the booking changes (cancelled, confirmed, change requested)
-  let rt = null
-  C.onDataChange = () => {
-    clearTimeout(rt)
-    rt = setTimeout(() => {
-      const ae = view.getRootNode && view.getRootNode().activeElement
-      if (ae && view.contains(ae) && /INPUT|TEXTAREA|SELECT/.test(ae.tagName)) return
-      if (view.getRootNode().querySelector && view.getRootNode().querySelector('.scrim')) return
-      clear(view); renderDetail(C, view, coupleId)
-    }, 450)
-  }
   clear(host)
   if (!lead) { host.appendChild(h('div', { class: 'empty' }, h('h2', { class: 'h3' }, 'Lead not found'), h('p', null, 'This couple may have been removed from your list.'))); return }
 
   const names = lead.coupleName + (lead.partnerName ? ' & ' + lead.partnerName : '')
   host.appendChild(h('div', { class: 'pagehead', style: { display: 'flex', gap: '16px', alignItems: 'center', marginTop: '10px' } },
     h('div', { class: 'avatar lg' }, lead.avatar ? h('img', { src: img(lead.avatar, 200), alt: '' }) : initial(lead.coupleName)),
-    h('div', { style: { minWidth: 0 } }, h('div', { class: 'eyebrow' }, lead.hasBooking && lead.tab !== 'completed' ? 'Booked wedding' : lead.tab === 'leads' ? 'Lead' : lead.tab === 'upcoming' ? 'Upcoming wedding' : 'Completed'),
+    h('div', { style: { minWidth: 0 } }, h('div', { class: 'eyebrow' }, lead.tab === 'leads' ? 'Lead' : lead.tab === 'upcoming' ? 'Upcoming wedding' : 'Completed'),
       h('h1', { class: 'h1', style: { fontSize: '30px', overflowWrap: 'anywhere' } }, names))))
 
   const kv = []
   const add = (k, v) => { if (v) kv.push(h('div', null, h('span', { class: 'k' }, k), h('span', { class: 'v' }, v))) }
-  add('Wedding date', lead.weddingDate ? fmtDate(lead.weddingDate) : (lead.bookedDate ? fmtDate(lead.bookedDate) : 'Not set yet'))
-  if (lead.bookedDate && lead.weddingDate && String(lead.bookedDate).slice(0, 10) !== String(lead.weddingDate).slice(0, 10)) add('Booked for', fmtDate(lead.bookedDate))
-  if (lead.hasBooking && !lead.bookedDate) add('Booked for', 'Date to be confirmed')
+  add('Wedding date', lead.weddingDate ? fmtDate(lead.weddingDate) : 'Not set yet')
   add('Location', lead.location)
   add('Guests', lead.guests ? String(lead.guests) : '')
   add('Budget', lead.budget ? fmtMoney(lead.budget) : '')
@@ -87,13 +71,9 @@ async function renderDetail(C, view, coupleId) {
   const msgBtn = h('button', { class: 'btn' }, icon('chat'), 'Message')
   msgBtn.addEventListener('click', async () => {
     msgBtn.disabled = true
-    // never leave the button stuck grey: it comes back after 6 seconds whatever happens
     const unstick = setTimeout(() => { msgBtn.disabled = false }, 6000)
-    try {
-      // a chat that already exists opens straight away, no lookup
-      const id = lead.convId || (await ensureConversation(C.sb, C.vendor.id, lead)).id
-      C.go('messages/' + id)
-    } catch (e) { msgBtn.disabled = false; clearTimeout(unstick); C.toast(C.err(e), true) }
+    try { const id = lead.convId || (await ensureConversation(C.sb, C.vendor.id, lead)).id; C.go('messages/' + id) }
+    catch (e) { clearTimeout(unstick); msgBtn.disabled = false; C.toast(C.err(e), true) }
   })
   host.appendChild(h('div', { class: 'sp24' }))
   const wdBtn = h('button', { class: 'btn ghost' }, 'Wedding day questionnaire')
@@ -114,9 +94,7 @@ async function renderDetail(C, view, coupleId) {
   const ansBody = h('div', { class: 'answers' }, h('div', { class: 'spin' })); ansHost.appendChild(ansBody)
   loadAnswers(C.sb, C.vendor.id, lead.coupleId).then(rows => {
     clear(ansBody)
-    if (!rows.length) ansBody.appendChild(h('div', null,
-      h('p', { class: 'muted' }, 'They have not answered any questions specific to your category yet. Their wedding day questionnaire has the full story of their day.'),
-      h('button', { class: 'btn ghost sm', onclick: () => openWeddingDay(C, lead, names) }, 'Open wedding day questionnaire')))
+    if (!rows.length) ansBody.appendChild(h('p', { class: 'muted' }, 'This couple has not filled in their questionnaire yet.'))
     else rows.forEach(r => ansBody.appendChild(h('div', { class: 'a' }, h('div', { class: 'q' }, r.label), h('div', { class: 'r' }, r.value))))
   }).catch(() => { clear(ansBody); ansBody.appendChild(h('p', { class: 'muted' }, 'Could not load their answers.')) })
 
@@ -172,18 +150,12 @@ function bookingPanel(C, host, lead) {
         line('Deposit', bk.deposit_amount != null ? fmtMoney(bk.deposit_amount) : '')))
       host.appendChild(h('div', { class: 'sp16' }))
       host.appendChild(h('button', { class: 'linkbtn bad', onclick: () => cancelSheet(C, base, render) }, 'Cancel this booking'))
-      if (!op) {
-        host.appendChild(h('div', { class: 'sp16' }))
-        host.appendChild(h('button', { class: 'btn ghost sm', onclick: () => formSheet(C, base, st, render, lead) }, 'Propose a change'))
-        return
-      }
-      host.appendChild(h('div', { class: 'sp24' }))
+      return
     }
     if (op) {
       const mine = op.proposed_by === 'vendor'
       host.appendChild(h('div', { class: 'panel' },
-        h('div', { class: 'eyebrow' }, mine ? (bk ? 'Change requested. Waiting for the couple' : 'Waiting for the couple') : (bk ? 'The couple has requested a change' : 'Proposal from the couple')),
-        bk ? h('div', { class: 'muted small' }, 'The booking stays as it is until the change is accepted.') : null,
+        h('div', { class: 'eyebrow' }, mine ? 'Waiting for the couple' : 'Proposal from the couple'),
         h('div', { class: 'sp8' }),
         h('div', { class: 'kv', style: { borderTop: 0 } },
           line('Date', fmtDate(op.event_date)), line('Package', op.package_name), line('Price', op.price != null ? fmtMoney(op.price) : ''),
