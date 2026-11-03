@@ -1,4 +1,5 @@
 import { h, clear, fmtDate, fmtMoney, ago, initial, daysUntil, today, img } from './lib.js'
+import { referralCard } from './referral.js'
 import { loadLeads } from './data.js'
 import { goLiveChecks, fixCheck } from './profile.js'
 
@@ -35,7 +36,9 @@ export async function renderOverview(C, view) {
   }
 
   const statsHost = h('div'); const nextHost = h('div'); const leadsHost = h('div')
-  view.append(statsHost, nextHost, leadsHost)
+  const refHost = h('div')
+  view.append(statsHost, refHost, nextHost, leadsHost)
+  referralCard(C).then((el) => { if (el) refHost.appendChild(el) }).catch(() => {})
   statsHost.appendChild(h('div', { class: 'skel' }))
 
   const t = today()

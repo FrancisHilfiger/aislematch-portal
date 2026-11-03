@@ -560,3 +560,10 @@ button.item:hover { background: rgba(226,244,255,.45); }
 .pillbtn { padding: 0 13px; font-size: 13.5px; }
 .pills { gap: 6px; }
 @media (min-width: 900px) { .thead > .iconbtn[aria-label="Back to messages"] { display: none; } .thead { padding-left: 14px; } }
+
+/* referral card */
+.refcard .refsub { margin: 0 0 14px; color: var(--muted, #6B5C52); font-size: 15px; line-height: 1.5; }
+.refcode { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; margin: 0 0 14px; background: #e2f4ff; border: 1px solid var(--line-s); border-radius: 14px; }
+.refcode .refcap { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted, #6B5C52); margin-bottom: 4px; }
+.refcode .refval { font-family: 'Cormorant', Georgia, serif; font-weight: 700; font-size: 26px; letter-spacing: .04em; color: var(--ink); word-break: break-all; user-select: all; }
+.refcard .note { margin-top: 12px; }
