@@ -1,4 +1,5 @@
 import { h, clear, icon, field, img, initial, toggle } from './lib.js'
+import { computeHealth, imageGuide } from './health.js'
 
 const STATES = ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT']
 const MAX_IMG = 15 * 1024 * 1024
@@ -64,10 +65,12 @@ export async function renderProfile(C, view) {
   view.appendChild(h('div', { class: 'pagehead' }, h('div', { class: 'eyebrow' }, 'Your listing'), h('h1', { class: 'h1' }, 'Profile'),
     h('p', null, 'This is what couples see when they find you in the app.')))
 
-  const pct = v.profile_completion_pct || 0
-  view.appendChild(h('div', null,
-    h('div', { style: { display: 'flex', justifyContent: 'space-between' } }, h('span', { class: 'eyebrow' }, 'Profile strength'), h('span', { class: 'small' }, pct + '%')),
-    h('div', { class: 'bar' }, h('i', { style: { width: Math.min(100, pct) + '%' } }))))
+  const strHost = h('div'); view.appendChild(strHost)
+  computeHealth(C).then((H) => {
+    clear(strHost)
+    strHost.appendChild(h('div', { style: { display: 'flex', justifyContent: 'space-between' } }, h('span', { class: 'eyebrow' }, 'Profile strength'), h('span', { class: 'small' }, H.pct + '%')))
+    strHost.appendChild(h('div', { class: 'bar' }, h('i', { style: { width: H.pct + '%' } })))
+  }).catch(() => {})
 
   const save = async (patch, btn, msg) => {
     if (btn) { btn.disabled = true }
@@ -108,6 +111,7 @@ export async function renderProfile(C, view) {
     const list = Array.isArray(v.portfolio_photos) ? v.portfolio_photos : []
     phHost.appendChild(h('div', { class: 'sechead' }, h('h2', { class: 'h2' }, 'Portfolio photos'), h('span', { class: 'tiny' }, list.length + ' added')))
     phHost.appendChild(h('p', { class: 'muted small', style: { marginBottom: '14px' } }, 'The first photo is the one couples see first. Aim for at least six of your best work.'))
+    phHost.appendChild(imageGuide())
     const grid = h('div', { class: 'photos' })
     list.forEach((u, i) => grid.appendChild(h('button', { class: 'ph', style: { padding: 0, border: 0 }, 'aria-label': 'Photo ' + (i + 1) + ' options', onclick: () => photoSheet(u, i) },
       h('img', { src: img(u, 400), alt: 'Portfolio photo ' + (i + 1), loading: 'lazy' }), i === 0 ? h('span', { class: 'cov' }, 'First') : null)))
@@ -151,7 +155,7 @@ export async function renderProfile(C, view) {
     vidHost.appendChild(h('div', { class: 'sechead' }, h('h2', { class: 'h2' }, 'Showreel')))
     const bar = h('div', { class: 'bar hidden' }, h('i', { style: { width: '0%' } }))
     if (v.portfolio_video_url) vidHost.appendChild(h('video', { src: v.portfolio_video_url, controls: true, playsinline: true, preload: 'metadata', style: { width: '100%', maxHeight: '360px', background: '#000', borderRadius: '10px', display: 'block', marginBottom: '14px' } }))
-    else vidHost.appendChild(h('p', { class: 'muted small', style: { marginBottom: '14px' } }, 'A short video of your work helps couples picture their day with you. Up to 150 MB.'))
+    else vidHost.appendChild(h('p', { class: 'muted small', style: { marginBottom: '14px' } }, 'A short video of your work helps couples picture their day with you. Film it upright (portrait, 9:16), up to 150 MB.'))
     vidHost.appendChild(h('div', { class: 'actions' },
       h('button', { class: 'btn ghost sm', onclick: async () => {
         const [f] = await pick('video/*', false); if (!f) return

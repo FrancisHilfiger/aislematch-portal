@@ -281,14 +281,16 @@ function boot(cfg) {
     if (event === 'SIGNED_OUT' && C.user) { C.user = null; C.vendor = null; showAuth('login') }
   })
   C.signedIn = async (session) => { C.recovering = false; await afterSignIn(session) }
+  // reset links must always open the reset form, even when no PASSWORD_RECOVERY event fires
+  try { if (/type=recovery/.test(location.hash + location.search) || /reset-password/.test(location.pathname + location.hash)) { C.recovering = true } } catch (e) {}
 
   // first paint
   root.appendChild(h('div', { class: 'spin', role: 'status', 'aria-label': 'Loading' }))
   setTimeout(async () => {
-    if (C.recovering) return
+    if (C.recovering) { showAuth('reset'); return }
     try {
       const { data } = await sb.auth.getSession()
-      if (C.recovering) return
+      if (C.recovering) { showAuth('reset'); return }
       if (data && data.session) await afterSignIn(data.session)
       else showAuth('login')
     } catch (e) { showAuth('login') }
