@@ -1,6 +1,7 @@
 import { h, clear, icon, field, fmtDate, fmtMoney, ago, initial, today, img, datePicker } from './lib.js'
 import { loadLeads, ensureConversation, loadAnswers } from './data.js'
 import { openWeddingDay } from './weddingday.js'
+import { loadFollow, followChips, followPanel } from './followups.js'
 
 const TABS = [['leads', 'Leads'], ['upcoming', 'Upcoming'], ['completed', 'Completed']]
 
@@ -15,13 +16,18 @@ export async function renderLeads(C, view, parts) {
   let tab = 'leads'
   try { const s = sessionStorage.getItem('ap-leadtab'); if (s) tab = s } catch (e) { /* ignore */ }
 
+  let follow = {}, dueOnly = false
   const draw = () => {
     clear(host)
     const counts = {}; TABS.forEach(([k]) => { counts[k] = all.filter(l => l.tab === k).length })
     host.appendChild(h('div', { class: 'seg', role: 'tablist' }, TABS.map(([k, label]) =>
       h('button', { role: 'tab', 'aria-selected': String(tab === k), onclick: () => { tab = k; try { sessionStorage.setItem('ap-leadtab', k) } catch (e) { /* ignore */ } draw() } },
         label, h('span', { class: 'c' }, String(counts[k]))))))
-    const rows = all.filter(l => l.tab === tab)
+    const tabRows = all.filter(l => l.tab === tab)
+    const dueRows = tabRows.filter(l => follow[l.coupleId] && follow[l.coupleId].open && follow[l.coupleId].due)
+    if (dueRows.length || dueOnly) host.appendChild(h('button', { class: 'note warn', style: { width: '100%', textAlign: 'left', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', margin: '12px 0' }, onclick: () => { dueOnly = !dueOnly; draw() } },
+      h('b', null, dueRows.length + ' follow-up' + (dueRows.length === 1 ? '' : 's') + ' due'), h('span', null, dueOnly ? 'Show everyone' : 'Show only these')))
+    const rows = dueOnly ? dueRows : tabRows
     if (!rows.length) {
       const msg = { leads: ['No open leads', 'New couples appear here as soon as they save your profile.'], upcoming: ['Nothing booked yet', 'Confirmed weddings stay here until the day has passed.'], completed: ['No completed weddings', 'Finished weddings move here automatically.'] }[tab]
       host.appendChild(h('div', { class: 'empty' }, h('h2', { class: 'h3' }, msg[0]), h('p', null, msg[1])))
@@ -32,12 +38,14 @@ export async function renderLeads(C, view, parts) {
         h('div', { class: 'avatar' }, l.avatar ? h('img', { src: img(l.avatar, 120), alt: '', loading: 'lazy' }) : initial(l.coupleName)),
         h('div', { class: 'body' },
           h('div', { class: 't' }, l.coupleName + (l.partnerName ? ' & ' + l.partnerName : '')),
-          h('div', { class: 's' }, l.preview || [fmtDate(l.weddingDate), l.location].filter(Boolean).join('  ·  '))),
+          h('div', { class: 's' }, l.preview || [fmtDate(l.weddingDate), l.location].filter(Boolean).join('  ·  ')),
+          followChips(follow[l.coupleId])),
         h('div', { class: 'meta' },
           l.isNew ? h('span', { class: 'tag new' }, 'New') : (l.unread ? h('span', { class: 'tag new' }, String(l.unread)) : null),
           h('div', null, ago(l.lastAt || l.createdAt)))))))
   }
   draw()
+  loadFollow(C.sb, C.vendor.id).then(f => { follow = f; draw() }).catch(() => {})
 }
 
 async function renderDetail(C, view, coupleId) {
@@ -83,6 +91,9 @@ async function renderDetail(C, view, coupleId) {
   // "View runsheet" only appears when a runsheet exists that this vendor is on
   C.sb.from('runsheet_participants').select('runsheet_id, runsheets!inner(couple_id)').eq('vendor_id', C.vendor.id).eq('runsheets.couple_id', lead.coupleId).limit(1)
     .then(r => { if (r.data && r.data.length) actionsRow.appendChild(h('button', { class: 'btn ghost', onclick: () => C.go('runsheet/' + lead.coupleId) }, 'View runsheet')) })
+
+  const fuHost = h('div', { class: 'sec' }); host.appendChild(fuHost)
+  followPanel(C, fuHost, lead).catch(() => {})
 
   // booking
   const bookHost = h('div', { class: 'sec' }); host.appendChild(bookHost)
