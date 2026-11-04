@@ -2,7 +2,7 @@ import { h, clear, fmtDate, fmtMoney, ago, initial, daysUntil, today, img } from
 import { referralCard } from './referral.js'
 import { loadLeads } from './data.js'
 import { goLiveChecks, fixCheck } from './profile.js'
-import { computeHealth, healthCard, previewCard } from './health.js'
+import { computeHealth, heroCard } from './health.js'
 
 export function accessNote(C) {
   const a = C.access || {}
@@ -38,9 +38,9 @@ export async function renderOverview(C, view) {
 
   const statsHost = h('div'); const nextHost = h('div'); const leadsHost = h('div')
   const refHost = h('div')
-  const hpHost = h('div')
-  view.append(statsHost, refHost, nextHost, leadsHost, hpHost)
-  computeHealth(C).then((H) => { hpHost.appendChild(healthCard(C, H)); hpHost.appendChild(previewCard(C, H)) }).catch(() => {})
+  const heroHost = h('div')
+  view.append(heroHost, statsHost, refHost, nextHost, leadsHost)
+  computeHealth(C).then((H) => { heroHost.appendChild(heroCard(C, H)) }).catch(() => {})
   referralCard(C).then((el) => { if (el) refHost.appendChild(el) }).catch(() => {})
   statsHost.appendChild(h('div', { class: 'skel' }))
 

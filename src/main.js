@@ -10,6 +10,7 @@ import { renderCalendar } from './calendar.js'
 import { renderRunsheet } from './runsheet.js'
 import { renderProfile } from './profile.js'
 import { renderPackages } from './packages.js'
+import { renderPreview } from './health.js'
 import { renderReviews } from './reviews.js'
 import { renderNotifications, renderSettings, renderBilling } from './more.js'
 
@@ -23,6 +24,7 @@ const NAV = [
   { id: 'calendar', label: 'Calendar', short: 'Calendar', icon: 'cal' },
   { id: 'runsheet', label: 'Runsheet', icon: 'book' },
   { id: 'profile', label: 'Profile', icon: 'user' },
+  { id: 'preview', label: 'What couples see', icon: 'img' },
   { id: 'packages', label: 'Packages', icon: 'box' },
   { id: 'reviews', label: 'Reviews', icon: 'star' },
   { id: 'notifications', label: 'Notifications', icon: 'bell' },
@@ -31,7 +33,7 @@ const NAV = [
 ]
 const VIEWS = {
   overview: renderOverview, leads: renderLeads, messages: renderMessages, calendar: renderCalendar, runsheet: renderRunsheet,
-  profile: renderProfile, packages: renderPackages, reviews: renderReviews, notifications: renderNotifications, settings: renderSettings, billing: renderBilling,
+  profile: renderProfile, preview: renderPreview, packages: renderPackages, reviews: renderReviews, notifications: renderNotifications, settings: renderSettings, billing: renderBilling,
 }
 const OPEN_WHEN_LOCKED = ['billing', 'settings']
 
@@ -181,7 +183,7 @@ function boot(cfg) {
     })
     const more = els.tabs && els.tabs.querySelector('[data-id="more"]')
     if (more) {
-      if (['runsheet', 'profile', 'packages', 'reviews', 'notifications', 'settings', 'billing'].includes(cur)) more.setAttribute('aria-current', 'page'); else more.removeAttribute('aria-current')
+      if (['runsheet', 'profile', 'preview', 'packages', 'reviews', 'notifications', 'settings', 'billing'].includes(cur)) more.setAttribute('aria-current', 'page'); else more.removeAttribute('aria-current')
       setDot(more, C.badges.notifs)
     }
   }

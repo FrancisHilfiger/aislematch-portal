@@ -23,8 +23,8 @@ export async function computeHealth(C) {
 
 export function healthCard(C, H) {
   const rows = H.items.map(i => h('div', { class: 'goitem', style: { opacity: i.ok ? 0.55 : 1 } },
-    h('span', { class: 'goic' }, i.ok ? '✓' : ''), h('span', { class: 'gol' }, i.label),
-    i.ok ? null : h('button', { class: 'linkbtn', onclick: () => { if (i.sec) C.jump = i.sec; C.go(i.route || 'profile') } }, 'Fix')))
+    h('span', { class: 'goic' }), h('span', { class: 'gol', style: i.ok ? { textDecoration: 'line-through' } : null }, i.label),
+    i.ok ? h('span', { class: 'tag ok' }, 'Done') : h('button', { class: 'linkbtn', onclick: () => { if (i.sec) C.jump = i.sec; C.go(i.route || 'profile') } }, 'Fix')))
   return h('div', { class: 'sec' },
     h('div', { class: 'sechead' }, h('h2', { class: 'h2' }, 'Profile health'), h('span', { class: 'small' }, H.pct + '%')),
     h('div', { class: 'bar' }, h('i', { style: { width: H.pct + '%' } })),
@@ -32,7 +32,7 @@ export function healthCard(C, H) {
 }
 
 // What a couple sees on the swipe card.
-export function previewCard(C, H) {
+export function previewCardEl(C) {
   const v = C.vendor || {}
   const photos = Array.isArray(v.portfolio_photos) ? v.portfolio_photos : []
   const cover = v.cover_photo_url || photos[0] || null
@@ -48,10 +48,12 @@ export function previewCard(C, H) {
       h('div', { style: { fontFamily: 'Cormorant, serif', fontSize: '28px', lineHeight: 1.1, marginTop: '4px' } }, (v.business_name || 'Your business')),
       v.tagline ? h('div', { style: { fontSize: '13px', opacity: .9, marginTop: '6px' } }, v.tagline) : null,
       h('div', { style: { fontSize: '12px', opacity: .85, marginTop: '8px' } }, [place, price].filter(Boolean).join('  ·  '))))
+  return card
+}
+export function previewCard(C, H) {
   return h('div', { class: 'sec' },
     h('div', { class: 'sechead' }, h('h2', { class: 'h2' }, 'What couples see')),
-    h('p', { class: 'muted small', style: { marginBottom: '14px' } }, 'This is your card when a couple swipes through vendors in the app.'),
-    card)
+    previewCardEl(C))
 }
 
 // Size guide for uploads. Cards are portrait, so portrait photos fill the whole card.
@@ -63,4 +65,46 @@ export function imageGuide() {
     h('div', { style: { display: 'flex', gap: '10px', alignItems: 'flex-end', marginBottom: '10px' } },
       frame(36, 64, 'Best', '9:16 portrait', true), frame(40, 50, 'Good', '4:5', true), frame(64, 40, 'Gets cropped', 'Landscape', false)),
     h('p', { class: 'muted', style: { fontSize: '12px', margin: 0 } }, 'Couples swipe through full-screen portrait cards. Upload portrait photos at least 1080 × 1920 px so they fill the card sharp. Landscape photos get cropped at the sides.'))
+}
+
+// Full "what couples see" page: the swipe card in a phone frame, then the profile they open.
+export async function renderPreview(C, view) {
+  view.appendChild(h('div', { class: 'pagehead' }, h('div', { class: 'eyebrow' }, 'Your listing'), h('h1', { class: 'h1' }, 'What couples see'),
+    h('p', null, 'This is how you look in the app. Change anything on your Profile and it updates here straight away.')))
+  const host = h('div'); view.appendChild(host)
+  host.appendChild(h('div', { class: 'skel' }))
+  const [H, pk] = await Promise.all([
+    computeHealth(C),
+    C.sb.from('vendor_packages').select('name, price, price_label, description').eq('vendor_id', C.vendor.id).eq('is_active', true).order('sort_order').then(r => r.data || []).catch(() => []),
+  ])
+  clear(host)
+  const v = C.vendor
+  const photos = Array.isArray(v.portfolio_photos) ? v.portfolio_photos : []
+  const left = h('div', null, h('div', { class: 'eyebrow', style: { textAlign: 'center', marginBottom: '12px' } }, 'On the swipe card'), h('div', { class: 'pv-phone' }, previewCardEl(C)))
+  const money = (n) => (n ? '$' + Number(n).toLocaleString('en-AU') : '')
+  const right = h('div', null,
+    h('div', { class: 'eyebrow', style: { marginBottom: '12px' } }, 'When they open your profile'),
+    h('div', { class: 'pv-sec' }, h('h2', { class: 'h2', style: { marginBottom: '4px' } }, v.business_name || 'Your business'), v.tagline ? h('p', { class: 'muted', style: { margin: '0 0 10px' } }, v.tagline) : null,
+      h('p', { style: { margin: 0, whiteSpace: 'pre-wrap' } }, v.bio || 'Add your About section so couples know who you are.')),
+    h('div', { class: 'pv-sec' }, h('h3', { class: 'h3', style: { marginBottom: '10px' } }, 'Portfolio'),
+      photos.length ? h('div', { class: 'pv-photos' }, photos.slice(0, 9).map(u => h('img', { src: img(u, 400), alt: '', loading: 'lazy' }))) : h('p', { class: 'muted small' }, 'No photos yet.'),
+      v.portfolio_video_url ? h('video', { src: v.portfolio_video_url, controls: true, playsinline: true, preload: 'metadata', style: { width: '100%', marginTop: '10px', borderRadius: '10px', maxHeight: '320px', background: '#000' } }) : null),
+    h('div', { class: 'pv-sec' }, h('h3', { class: 'h3', style: { marginBottom: '6px' } }, 'Packages'),
+      pk.length ? pk.map(p => h('div', { class: 'pv-pkg' }, h('div', null, h('b', null, p.name), p.description ? h('div', { class: 'muted small' }, String(p.description).slice(0, 110)) : null), h('div', { style: { whiteSpace: 'nowrap', fontWeight: 600 } }, p.price_label ? p.price_label : money(p.price)))) : h('p', { class: 'muted small' }, 'No packages yet. Couples compare prices before they enquire.')),
+    h('div', { class: 'actions' }, h('button', { class: 'btn', onclick: () => C.go('profile') }, 'Edit my profile'), h('button', { class: 'btn ghost', onclick: () => C.go('packages') }, 'Edit packages')))
+  host.appendChild(h('div', { class: 'pv-wrap' }, left, right))
+  host.appendChild(h('div', { class: 'sp24' })); host.appendChild(healthCard(C, H))
+}
+
+// Overview hero: wedding pattern, profile strength, jump to preview.
+export function heroCard(C, H) {
+  const v = C.vendor || {}
+  const next = H.items.find(i => !i.ok)
+  return h('div', { class: 'hero' },
+    h('h2', { class: 'hl' }, H.pct >= 100 ? 'Your profile is complete' : 'Your profile is ' + H.pct + '% complete'),
+    h('p', { class: 'hs' }, H.pct >= 100 ? 'Couples see you at your best. Keep your photos fresh and reply fast.' : 'Complete profiles get saved far more often. ' + (next ? 'Next up: ' + next.label.toLowerCase() + '.' : '')),
+    h('div', { class: 'hbar' }, h('i', { style: { width: H.pct + '%' } })),
+    h('div', { class: 'hrow' },
+      h('button', { class: 'btn', onclick: () => C.go('preview') }, 'See what couples see'),
+      next ? h('button', { class: 'btn ghost', onclick: () => { if (next.sec) C.jump = next.sec; C.go(next.route || 'profile') } }, 'Finish: ' + next.label) : null))
 }
