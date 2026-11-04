@@ -587,3 +587,11 @@ button.item:hover { background: rgba(226,244,255,.45); }
 .pv-photos img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 8px; display: block; }
 .pv-pkg { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid #e4e9ec; }
 .pv-pkg:first-of-type { border-top: 0; }
+
+/* ---- wedding icon background (hero-art-v2) ---- */
+.hero { --hero-art: url("https://res.cloudinary.com/dw7kndjnv/image/upload/f_auto,q_auto,w_900/v1793780297/Steel_Blue_Wedding_Icons_Pattern_r1rs2d.png"); }
+.hero::before { background-size: 440px 440px; opacity: .9; mix-blend-mode: multiply; -webkit-mask-image: linear-gradient(to left, #000 30%, rgba(0,0,0,.25) 100%); mask-image: linear-gradient(to left, #000 30%, rgba(0,0,0,.25) 100%); }
+.view.ov {
+  background-image: linear-gradient(rgba(251,248,243,.86), rgba(251,248,243,.86)), url("https://res.cloudinary.com/dw7kndjnv/image/upload/f_auto,q_auto,w_900/v1793780297/Steel_Blue_Wedding_Icons_Pattern_r1rs2d.png");
+  background-size: auto, 560px 560px; background-repeat: repeat; background-attachment: local;
+}

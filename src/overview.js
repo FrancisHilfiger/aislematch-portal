@@ -19,6 +19,7 @@ export function accessNote(C) {
 }
 
 export async function renderOverview(C, view) {
+  view.classList.add('ov')
   const v = C.vendor
   const first = (v.business_name || '').trim()
   view.appendChild(h('div', { class: 'pagehead' },
