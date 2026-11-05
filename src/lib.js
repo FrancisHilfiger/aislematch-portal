@@ -27,6 +27,9 @@ export function clear(el) { while (el.firstChild) el.removeChild(el.firstChild) 
 
 // Icons are constant strings defined here, never user data.
 const P = {
+  folder: 'M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z',
+  upload: 'M12 16V5M7.5 9.5 12 5l4.5 4.5M4.5 15v3.5a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1V15',
+  file: 'M6.5 3.5h7l4 4v13h-11zM13.5 3.5v4h4',
   home: 'M3 11.5 12 4l9 7.5M5.5 10v9.5h13V10',
   heart: 'M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.6 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10z',
   chat: 'M4 5.5h16v10.5H9.5L5 19.5V16H4z',

@@ -27,7 +27,7 @@ const NAV = [
   { id: 'profile', label: 'Profile', icon: 'user' },
   { id: 'preview', label: 'What couples see', icon: 'img' },
   { id: 'packages', label: 'Packages', icon: 'box' },
-  { id: 'documents', label: 'Documents', icon: 'tick' },
+  { id: 'documents', label: 'Documents', icon: 'folder' },
   { id: 'reviews', label: 'Reviews', icon: 'star' },
   { id: 'notifications', label: 'Notifications', icon: 'bell' },
   { id: 'settings', label: 'Settings', icon: 'gear' },
