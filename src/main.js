@@ -9,6 +9,7 @@ import { renderMessages } from './messages.js'
 import { renderCalendar } from './calendar.js'
 import { renderRunsheet } from './runsheet.js'
 import { renderProfile } from './profile.js'
+import { renderDocuments } from './documents.js'
 import { renderPackages } from './packages.js'
 import { renderPreview } from './health.js'
 import { renderReviews } from './reviews.js'
@@ -26,6 +27,7 @@ const NAV = [
   { id: 'profile', label: 'Profile', icon: 'user' },
   { id: 'preview', label: 'What couples see', icon: 'img' },
   { id: 'packages', label: 'Packages', icon: 'box' },
+  { id: 'documents', label: 'Documents', icon: 'tick' },
   { id: 'reviews', label: 'Reviews', icon: 'star' },
   { id: 'notifications', label: 'Notifications', icon: 'bell' },
   { id: 'settings', label: 'Settings', icon: 'gear' },
@@ -33,7 +35,7 @@ const NAV = [
 ]
 const VIEWS = {
   overview: renderOverview, leads: renderLeads, messages: renderMessages, calendar: renderCalendar, runsheet: renderRunsheet,
-  profile: renderProfile, preview: renderPreview, packages: renderPackages, reviews: renderReviews, notifications: renderNotifications, settings: renderSettings, billing: renderBilling,
+  profile: renderProfile, preview: renderPreview, packages: renderPackages, documents: renderDocuments, reviews: renderReviews, notifications: renderNotifications, settings: renderSettings, billing: renderBilling,
 }
 const OPEN_WHEN_LOCKED = ['billing', 'settings']
 
